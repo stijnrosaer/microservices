@@ -1,0 +1,86 @@
+version: '3'
+
+services:
+  users:
+    build:
+      context: ./services/users
+      dockerfile: Dockerfile-dev
+    volumes:
+      - './services/users:/usr/src/app'
+    ports:
+      - 5001:5000
+    environment:
+      - FLASK_APP=project/__init__.py
+      - FLASK_ENV=development
+      - USERS_APP_SETTINGS=project.config.DevelopmentConfig
+      - USERS_DATABASE_URL=postgres://postgres:postgres@users-db:5432/users_dev
+      - SECRET_KEY=my_precious
+    depends_on:
+      - users-db
+
+  users-db:
+    build:
+      context: ./services/users/project/db
+      dockerfile: Dockerfile
+    ports:
+      - 5435:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+  scores:
+    build:
+      context: ./services/scores
+      dockerfile: Dockerfile-dev
+    volumes:
+      - './services/scores:/usr/src/app'
+    ports:
+      - 5002:5000
+    environment:
+      - FLASK_APP=project/__init__.py
+      - FLASK_ENV=development
+      - SCORES_APP_SETTINGS=project.config.DevelopmentConfig
+      - SCORES_DATABASE_URL=postgres://postgres:postgres@scores-db:5433/scores_dev
+    depends_on:
+      - scores-db
+
+  scores-db:
+    build:
+      context: ./services/scores/project/db
+      dockerfile: Dockerfile
+    ports:
+      - 5436:5433
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    command:
+      - "postgres"
+      - "-c"
+      - "port=5433"
+
+  nginx:
+    build:
+      context: ./services/nginx
+      dockerfile: Dockerfile-dev
+    restart: always
+    ports:
+      - 80:80
+    depends_on:
+      - users
+      - client
+
+  client:
+    build:
+      context: ./services/client
+      dockerfile: Docker-dev
+    volumes:
+      - './services/client:/usr/src/app'
+      - '/usr/src/app/node_modules'
+    ports:
+      - 3007:3000
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_USERS_SERVICE_URL=${REACT_APP_USERS_SERVICE_URL}
+    depends_on:
+      - users
+      - scores
